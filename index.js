@@ -56,7 +56,6 @@ const run = async () => {
                 }
             }
             const result = await productsCollection.updateOne(filter, updatedDoc, options);
-            console.log(result);
             if (!result) {
                 res.send({ success: false, message: "Sorry! couldn't update this time" })
             } else {
