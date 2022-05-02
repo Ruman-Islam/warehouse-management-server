@@ -10,7 +10,9 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 app.use(cors());
 app.use(express.json());
 
-
+const verifyUser = () => {
+    console.log('console from verify');
+}
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.vzdnu.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
@@ -21,6 +23,16 @@ const run = async () => {
         const productsCollection = client.db("warehouse").collection("products");
         const sellersInfoCollection = client.db("warehouse").collection("sellers-info");
         const topSellingProductsCollection = client.db("warehouse").collection("top-selling-products");
+
+        // generate token
+        // http://localhost:5000/login
+        app.post('/login', async (req, res) => {
+            const userEmail = req.body;
+            const accessToken = jwt.sign(userEmail, process.env.ACCESS_TOKEN_SECRET, {
+                expiresIn: '1d'
+            });
+            res.send(accessToken);
+        })
 
         // http://localhost:5000/products
         app.get('/products', async (req, res) => {
@@ -34,8 +46,9 @@ const run = async () => {
             }
         })
 
-        // http://localhost:5000/products/user
+        // http://localhost:5000/products-user
         app.get('/products-user', async (req, res) => {
+            verifyUser();
             const email = req.query.email;
             const cursor = productsCollection.find({ email });
             const products = await cursor.toArray();
