@@ -10,8 +10,21 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 app.use(cors());
 app.use(express.json());
 
-const verifyUser = () => {
-    console.log('console from verify');
+const verifyUser = (req, res, next) => {
+    const accessKeyHolder = req.headers?.authorization;
+    if (!accessKeyHolder) {
+        return res.status(401).send({ message: "Unauthorized access" })
+    } else {
+        const accessToken = accessKeyHolder.split(' ')[1];
+        jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+            if (err) {
+                return res.status(403).send({ message: "Forbidden access" })
+            } else {
+                req.decoded = decoded;
+                next();
+            }
+        })
+    }
 }
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.vzdnu.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
@@ -47,15 +60,15 @@ const run = async () => {
         })
 
         // http://localhost:5000/products-user
-        app.get('/products-user', async (req, res) => {
-            verifyUser();
+        app.get('/products-user', verifyUser, async (req, res) => {
+            const decodedEmail = req.decoded.email;
             const email = req.query.email;
-            const cursor = productsCollection.find({ email });
-            const products = await cursor.toArray();
-            if (!products) {
-                res.send({ success: false, message: "Products not available right now" })
+            if (decodedEmail === email) {
+                const cursor = productsCollection.find({ email });
+                const products = await cursor.toArray();
+                res.send({ success: true, products });
             } else {
-                res.send({ success: true, products })
+                res.status(403).send({ message: 'Forbidden access' });
             }
         })
 
