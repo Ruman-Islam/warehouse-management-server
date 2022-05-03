@@ -13,11 +13,13 @@ app.use(express.json());
 const verifyUser = (req, res, next) => {
     const accessKeyHolder = req.headers?.authorization;
     if (!accessKeyHolder) {
+        console.log('object');
         return res.status(401).send({ message: "Unauthorized access" })
     } else {
         const accessToken = accessKeyHolder.split(' ')[1];
         jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
             if (err) {
+                console.log(err);
                 return res.status(403).send({ message: "Forbidden access" })
             } else {
                 req.decoded = decoded;
@@ -49,13 +51,15 @@ const run = async () => {
 
         // http://localhost:5000/products
         app.get('/products', async (req, res) => {
-            const query = req.query;
-            const cursor = productsCollection.find(query);
-            const products = await cursor.toArray();
-            if (!products) {
+            const limit = parseInt(req.query.limit);
+            const pageNumber = parseInt(req.query.pageNumber);
+            const count = await productsCollection.estimatedDocumentCount();
+            const cursor = productsCollection.find({});
+            const products = await cursor.skip(pageNumber * limit).limit(limit).toArray();
+            if (!products.length) {
                 res.send({ success: false, message: "Products not available right now" })
             } else {
-                res.send({ success: true, products })
+                res.send({ success: true, products, count })
             }
         })
 
@@ -63,10 +67,14 @@ const run = async () => {
         app.get('/products-user', verifyUser, async (req, res) => {
             const decodedEmail = req.decoded.email;
             const email = req.query.email;
+            const limit = parseInt(req.query.limit);
+            const pageNumber = parseInt(req.query.pageNumber);
             if (decodedEmail === email) {
                 const cursor = productsCollection.find({ email });
-                const products = await cursor.toArray();
-                res.send({ success: true, products });
+                const allUserProducts = productsCollection.find({ email });
+                const count = await allUserProducts.toArray();
+                const products = await cursor.skip(pageNumber * limit).limit(limit).toArray();
+                res.send({ success: true, products, count: count.length });
             } else {
                 res.status(403).send({ message: 'Forbidden access' });
             }
