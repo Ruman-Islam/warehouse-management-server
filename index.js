@@ -56,7 +56,8 @@ const run = async () => {
             const count = await productsCollection.estimatedDocumentCount();
             const cursor = productsCollection.find({});
             const products = await cursor.skip(pageNumber * limit).limit(limit).toArray();
-            if (!products.length) {
+
+            if (products.length === 0) {
                 res.send({ success: false, message: "Products not available right now" })
             } else {
                 res.send({ success: true, products, count })
