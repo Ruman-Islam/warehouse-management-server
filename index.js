@@ -13,13 +13,11 @@ app.use(express.json());
 const verifyUser = (req, res, next) => {
     const accessKeyHolder = req.headers?.authorization;
     if (!accessKeyHolder) {
-        console.log('object');
         return res.status(401).send({ message: "Unauthorized access" })
     } else {
         const accessToken = accessKeyHolder.split(' ')[1];
         jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
             if (err) {
-                console.log(err);
                 return res.status(403).send({ message: "Forbidden access" })
             } else {
                 req.decoded = decoded;
@@ -57,10 +55,14 @@ const run = async () => {
             const cursor = productsCollection.find({});
             const products = await cursor.skip(pageNumber * limit).limit(limit).toArray();
 
-            if (products.length === 0) {
-                res.send({ success: false, message: "Products not available right now" })
-            } else {
-                res.send({ success: true, products, count })
+            try {
+                if (products.length === 0) {
+                    res.status(404).send({ success: false, message: 'No data found' });
+                } else {
+                    res.send({ success: true, products, count });
+                }
+            } catch (err) {
+                res.status(500).send({ success: false, message: 'Internal server error' });
             }
         })
 
@@ -70,26 +72,38 @@ const run = async () => {
             const email = req.query.email;
             const limit = parseInt(req.query.limit);
             const pageNumber = parseInt(req.query.pageNumber);
-            if (decodedEmail === email) {
-                const cursor = productsCollection.find({ email });
-                const allUserProducts = productsCollection.find({ email });
-                const count = await allUserProducts.toArray();
-                const products = await cursor.skip(pageNumber * limit).limit(limit).toArray();
-                res.send({ success: true, products, count: count.length });
-            } else {
-                res.status(403).send({ message: 'Forbidden access' });
+            const cursor = productsCollection.find({ email });
+            const allUserProducts = productsCollection.find({ email });
+            const count = await allUserProducts.toArray();
+            const products = await cursor.skip(pageNumber * limit).limit(limit).toArray();
+            try {
+                if (decodedEmail === email) {
+                    if (products.length === 0) {
+                        res.status(404).send({ success: false, message: 'No data found' });
+                    } else {
+                        res.send({ success: true, products, count: count.length });
+                    }
+                } else {
+                    res.status(403).send({ success: false, message: 'Forbidden access' });
+                }
+            } catch (err) {
+                res.status(500).send({ success: false, message: 'Internal server error' });
             }
-        })
+        });
 
         // http://localhost:5000/product
         app.get('/product/:productId', async (req, res) => {
             const productId = req.params.productId;
             const query = { _id: ObjectId(productId) };
             const product = await productsCollection.findOne(query);
-            if (!product) {
-                res.send({ success: false, message: "Product not available right now" })
-            } else {
-                res.send({ success: true, product })
+            try {
+                if (!product) {
+                    res.send({ success: false, message: "Product not available right now" })
+                } else {
+                    res.send({ success: true, product })
+                }
+            } catch (err) {
+                res.status(500).send({ success: false, message: 'Internal server error' });
             }
         });
 
@@ -104,22 +118,30 @@ const run = async () => {
                     quantity: updateQuantity.newQuantity
                 }
             }
-            const result = await productsCollection.updateOne(query, updatedDoc, options);
-            if (!result) {
-                res.send({ success: false, message: "Sorry! couldn't update this time" })
-            } else {
-                res.send({ success: true, result })
+            try {
+                const result = await productsCollection.updateOne(query, updatedDoc, options);
+                if (!result) {
+                    res.status(500).send({ success: false, message: "Sorry! couldn't update this time" });
+                } else {
+                    res.send({ success: true, result })
+                }
+            } catch (error) {
+                res.status(500).send({ success: false, message: "Sorry! couldn't update this time" });
             }
         })
 
         // http://localhost:5000/add-product
         app.post('/add-product', async (req, res) => {
             const product = req.body;
-            const result = await productsCollection.insertOne(product);
-            if (!result) {
-                res.send({ success: false, message: "Sorry! couldn't add this time" })
-            } else {
-                res.send({ success: true, result })
+            try {
+                const result = await productsCollection.insertOne(product);
+                if (!result) {
+                    res.send({ success: false, message: "Sorry! couldn't add this time" })
+                } else {
+                    res.send({ success: true, result })
+                }
+            } catch (error) {
+                res.status(500).send({ success: false, message: "Sorry! couldn't add this time" });
             }
 
         })
@@ -144,10 +166,14 @@ const run = async () => {
             const productId = req.params.productId;
             const query = { _id: ObjectId(productId) };
             const product = await productsCollection.deleteOne(query);
-            if (!product) {
-                res.send({ success: false, message: "Sorry! couldn't delete this time" })
-            } else {
-                res.send({ success: true, product })
+            try {
+                if (!product) {
+                    res.send({ success: false, message: "Sorry! couldn't delete this time" })
+                } else {
+                    res.send({ success: true, product })
+                }
+            } catch (error) {
+                res.status(500).send({ success: false, message: "Sorry! couldn't delete this time" });
             }
         })
 
