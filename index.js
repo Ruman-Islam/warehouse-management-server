@@ -107,7 +107,7 @@ const run = async () => {
             }
         });
 
-        // http://localhost:5000/product
+        // http://localhost:5000/product 
         app.put('/product/:productId', async (req, res) => {
             const productId = req.params.productId;
             const updateQuantity = req.body;
